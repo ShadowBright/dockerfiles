@@ -27,7 +27,6 @@ RUN apt-get update && apt-get install -y \
     vim \
     wget \
     unzip \
-    sed \
 	--no-install-recommends
 
 ENV LANG en-US
@@ -38,11 +37,11 @@ COPY config/firefox_addons.sh /tmp
 RUN echo 'pref("browser.tabs.remote.autostart", false);' >> /etc/firefox/syspref.js && \
     export LC_ALL="C" && \
     /tmp/firefox_addons.sh && \
-    apt-get --purge autoremove \
+    apt-get -y --purge autoremove \
     wget \
     vim \
     unzip \
-    sed && \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 
