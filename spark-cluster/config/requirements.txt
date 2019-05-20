@@ -1,0 +1,6 @@
+jupyterlab
+jupyter-contrib-nbextensions
+jupyter-spark
+awscli
+boto3
+s3fs
