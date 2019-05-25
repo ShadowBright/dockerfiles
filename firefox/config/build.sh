@@ -8,14 +8,17 @@ if [[ "$(docker images -q $image_name 2> /dev/null)" == "" ]]; then
 
     read -p "Remove previous build [y/(n)]?" choice
     case "$choice" in
-           y|Y ) sh remove.sh $image_name;;
+           y|Y ) sh config/remove.sh $image_name;;
               n|N ) echo "Not removing previous build...";;
                  * ) echo "Not removing previous build...";;
                    esac
 fi
 
-docker build -t $image_name . \
-    > build.out 2>&1 &
+start_time=$(date +%s)
 
-tail -f build.out
+docker build -t $image_name . \
+    | while read line; do echo "$((`date +%s` - $start_time)) $line"; done \
+          > build.out 2>&1 | tee build.out &
+
+cat build.out
 

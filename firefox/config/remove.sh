@@ -1,2 +1,2 @@
-docker ps -a | awk '{ print $1,$2 }' | grep $1 | awk '{print $1 }' | xargs -I {} docker rm -f {}
-docker rmi -f $1
+docker ps -a | awk '{ print $1,$2 }' | grep feed_cloud | awk '{print $1 }' | xargs -I {} docker rm {}
+docker rmi feed_cloud
