@@ -7,7 +7,7 @@ LATEST ?=$(shell cat LATEST)
 
 
 build: ## Build docker image
-	./config/build.sh
+	./config/build.sh Dockerfile
 
 .PHONY: start
 start: ## start spark cluster

@@ -1,20 +1,24 @@
-FROM alpine:3.8
-
+FROM anapsix/alpine-java
 
 USER root
+WORKDIR /tmp
 
-ENV JDK_VERSION=8
-ENV SPARK_VERSION=2.4.2
-ENV HADOOP_VERSION=3.2.0
-ENV SCALA_VERSION=2.12.4
-ENV SBT_VERSION=1.2.8
+ARG SPARK_VERSION
+ARG HADOOP_VERSION
+ARG SCALA_VERSION
+ARG SBT_VERSION
+
+ENV SPARK_VERSION=${SPARK_VERSION}
+ENV HADOOP_VERSION=${HADOOP_VERSION}
+ENV SCALA_VERSION=${SCALA_VERSION}
+ENV SBT_VERSION=${SBT_VERSION}
+
 
 ENV SCALA_ARCHIVE=scala-${SCALA_VERSION}.tgz
 ENV SBT_ARCHIVE=sbt-${SBT_VERSION}.tgz
 ENV SPARK_ARCHIVE=spark-${SPARK_VERSION}-bin-without-hadoop.tgz
 ENV HADOOP_ARCHIVE=hadoop-${HADOOP_VERSION}.tar.gz
 
-ENV JAVA_HOME=/usr/lib/jvm/java-1.${JDK_VERSION}-openjdk/
 ENV SPARK_HOME=/opt/spark/
 ENV HADOOP_HOME=/opt/hadoop/
 ENV HADOOP_CONF_DIR=${HADOOP_HOME}/etc/hadoop/
@@ -22,33 +26,23 @@ ENV SCALA_HOME=/opt/scala
 ENV SBT_HOME=/opt/sbt
 
 
-RUN mkdir -p /tmp/config
-COPY config/init_env.sh /tmp/config/
-COPY config/jupyter_notebook_config.py /tmp/config/
-COPY config/entrypoint* /tmp/config/
-COPY config/nbextentions.sh /tmp/config/
 COPY config/repositories /etc/apk/repositories
 COPY config/*.rsa.pub /etc/apk/keys/
-COPY config/requirements.txt /tmp/config/requirements.txt
-
-RUN echo export JAVA_HOME=$JAVA_HOME > /tmp/config/env.sh
-RUN echo export SPARK_HOME=$SPARK_HOME >> /tmp/config/env.sh
-RUN echo export HADOOP_HOME=$HADOOP_HOME >> /tmp/config/env.sh
-RUN echo export HADOOP_CONF_DIR=$HADOOP_CONF_DIR >> /tmp/config/env.sh
-
-RUN echo source /tmp/config/init_env.sh >> /tmp/config/.bashrc
-RUN echo ". '/opt/spark/sbin/spark-config.sh'" >> /tmp/config/.bashrc
-RUN echo ". '/opt/spark/bin/load-spark-env.sh'" >> /tmp/config/.bashrc
-RUN echo "export PATH='/usr/bin/scala:/usr/local/sbt/bin:$PATH'" >> /tmp/config/.bashrc 
-
-# Setup SSH access
-RUN passwd -d root
 COPY config/id_rsa.pub /root/.ssh/authorized_keys
 COPY config/id_rsa /root/.ssh/id_rsa
-RUN chmod 0600 /root/.ssh/id_rsa /root/.ssh/authorized_keys
 
-WORKDIR /tmp
-RUN apk add --virtual build_dependencies \
+RUN mkdir -p /tmp/config && \
+    echo export JAVA_HOME=$JAVA_HOME > /tmp/config/env.sh && \
+    echo export SPARK_HOME=$SPARK_HOME >> /tmp/config/env.sh && \
+    echo export HADOOP_HOME=$HADOOP_HOME >> /tmp/config/env.sh && \
+    echo export HADOOP_CONF_DIR=$HADOOP_CONF_DIR >> /tmp/config/env.sh && \
+    echo source /tmp/config/init_env.sh >> /tmp/config/.bashrc && \
+    echo ". '/opt/spark/sbin/spark-config.sh'" >> /tmp/config/.bashrc && \
+    echo ". '/opt/spark/bin/load-spark-env.sh'" >> /tmp/config/.bashrc && \
+    echo "export PATH='/usr/bin/scala:/usr/local/sbt/bin:$PATH'" >> /tmp/config/.bashrc && \ 
+passwd -d root && \
+    chmod 0600 /root/.ssh/id_rsa /root/.ssh/authorized_keys && \
+apk add  --virtual build_dependencies \
 	alpine-sdk \
 	build-base \
     nodejs \
@@ -67,10 +61,8 @@ RUN apk add --virtual build_dependencies \
     linux-headers \
     zeromq-dev \
     libstdc++ && \
-    ln -s /usr/include/locale.h /usr/include/xlocale.h
-    
-
-RUN apk add --no-cache \ 
+    ln -s /usr/include/locale.h /usr/include/xlocale.h && \
+apk add --no-cache \ 
         bash \
 	    curl \
 	    vim \
@@ -83,28 +75,23 @@ RUN apk add --no-cache \
         py3-scipy \ 
         py3-pandas \
         py3-matplotlib \
-        openssh \
-        openjdk${JDK_VERSION} && \
+        openssh && \
         pip3 install --no-cache-dir --upgrade setuptools pip && \
-        pip3 install -r /tmp/config/requirements.txt
-     
-RUN mkdir -p "${SCALA_HOME}" && \
+echo "Scala Archive: ${SCALA_ARCHIVE}" && \
+    mkdir -p "${SCALA_HOME}" && \
     wget -q https://downloads.typesafe.com/scala/${SCALA_VERSION}/${SCALA_ARCHIVE} && \
     tar xzf ${SCALA_ARCHIVE} --strip=1 -C ${SCALA_HOME} && \
     rm ${SCALA_ARCHIVE} && \
-    ln -s "${SCALA_HOME}/bin/"* "/usr/bin/"
-
-RUN mkdir -p ${SBT_HOME} && \
+    ln -s "${SCALA_HOME}/bin/"* "/usr/bin/" && \
+mkdir -p ${SBT_HOME} && \
     wget -q --no-check-certificate https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/${SBT_ARCHIVE} && \
     tar xzf ${SBT_ARCHIVE} -C ${SBT_HOME} --strip-components=1 && \
-    rm ${SBT_ARCHIVE}
- 
-RUN mkdir -p "${HADOOP_HOME}" && \
+    rm ${SBT_ARCHIVE} && \
+mkdir -p "${HADOOP_HOME}" && \
     wget -q http://apache.lauf-forum.at/hadoop/common/hadoop-${HADOOP_VERSION}/${HADOOP_ARCHIVE} && \
     tar xzf ${HADOOP_ARCHIVE} --strip=1 -C ${HADOOP_HOME} && \
-    rm ${HADOOP_ARCHIVE}
-
-RUN mkdir -p /opt/spark && \
+    rm ${HADOOP_ARCHIVE} && \
+mkdir -p /opt/spark && \
     wget -q http://mirror.synyx.de/apache/spark/spark-${SPARK_VERSION}/${SPARK_ARCHIVE} && \
     tar xzf ${SPARK_ARCHIVE} --strip=1 -C /opt/spark && \
     rm ${SPARK_ARCHIVE}
@@ -128,6 +115,14 @@ RUN adduser -D -u $NB_UID $NB_USER && \
     chmod g+w /etc/passwd /etc/group && \
     apk del --purge -r build_dependencies && \
     cp /tmp/config/.bashrc ~
+
+COPY    config/init_env.sh \
+        config/jupyter_notebook_config.py \
+        config/entrypoint* \
+        config/nbextentions.sh \
+        config/requirements.txt /tmp/config/
+
+#pip3 install -r /tmp/config/requirements.txt
 
 
 #USER dev
